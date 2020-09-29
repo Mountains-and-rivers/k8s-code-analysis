@@ -9,10 +9,30 @@ root     2255090 2254696 35 20:34 pts/0    00:00:05 /root/go/src/k8s.io/Kubernet
 
 首先要明确这些参数是如何通过cobra传递的
 
-进程启动，初始化配置如下
+进程启动，初始化配置如下k8s.io\Kubernetes\cmd\kube-apiserver\app\server.go
 
 ```
-s := options.NewServerRunOptions()
+const (
+	etcdRetryLimit    = 60
+	etcdRetryInterval = 1 * time.Second
+)
+
+// NewAPIServerCommand creates a *cobra.Command object with default parameters
+func NewAPIServerCommand() *cobra.Command {
+	s := options.NewServerRunOptions()
+	cmd := &cobra.Command{
+		Use: "kube-apiserver",
+		Long: `The Kubernetes API server validates and configures data
+for the api objects which include pods, services, replicationcontrollers, and
+others. The API Server services REST operations and provides the frontend to the
+cluster's shared state through which all other components interact.`,
+
+		// stop printing usage when the command errors
+		SilenceUsage: true,
+		PersistentPreRunE: func(*cobra.Command, []string) error {
+```
+
+```
 打印出s的值
 ( * options.ServerRunOptions) {
 	GenericServerRunOptions: ( * options.ServerRunOptions) {
