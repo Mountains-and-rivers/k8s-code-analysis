@@ -9,7 +9,26 @@ root     2255090 2254696 35 20:34 pts/0    00:00:05 /root/go/src/k8s.io/Kubernet
 
 首先要明确这些参数是如何通过cobra传递的
 
-进程启动，初始化配置如下k8s.io\Kubernetes\cmd\kube-apiserver\app\server.go
+kubernetes修改了cobra库，并没有用到init
+
+```
+func OnInitialize(y ...func()) {
+	initializers = append(initializers, y...)
+}
+这个函数并没有被调用
+可以查看
+https://github.com/spf13/cobra
+init的用法
+```
+
+编译完成，进程启动在k8s.io\Kubernetes\cmd\kube-apiserver\app\server.go中
+
+```
+s := options.NewServerRunOptions()
+初始化操作配置，相当于调用了init函数
+```
+
+
 
 ```
 const (
@@ -448,10 +467,11 @@ cluster's shared state through which all other components interact.`,
 }
 ```
 
-进程启动后，调用下列函数
+进程启动后，在k8s.io\Kubernetes\cmd\kube-apiserver\apiserver.go中
 
 ```
 	if err := command.Execute(); err != nil {
+		os.Exit(1)
 	}
 ```
 
@@ -989,8 +1009,52 @@ RunE: func(cmd *cobra.Command, args []string) error {
 		EnablePriorityAndFairness: true
 ```
 
-这里值比较一部分
-CorsAllowedOriginList参数值正是kube-apiserver启动参数中的--cors-allowed-origins=/127.0.0.1(:[0-9]+)?$,/localhost(:[0-9]+)?$
+这里值比较一部分参数值，例如：
+
+```
+		CorsAllowedOriginList: [] string {
+			"/127.0.0.1(:[0-9]+)?$",
+			"/localhost(:[0-9]+)?$"
+		}
+CorsAllowedOriginList参数值正是kube-apiserver启动参数中的
+
+--cors-allowed-origins=/127.0.0.1(:[0-9]+)?$,/localhost(:[0-9]+)?$
+
+```
+
+再比如etcd:
+
+```
+	Etcd: ( * options.EtcdOptions) {
+		StorageConfig: storagebackend.Config {
+			Type: "etcd3",
+			Prefix: "/registry",
+			Transport: storagebackend.TransportConfig {
+				ServerList: [] string {
+					"http://127.0.0.1:2379"
+				},
+				KeyFile: "",
+				CertFile: "",
+				TrustedCAFile: "",
+				EgressLookup: (egressselector.Lookup)(0x0000000000000000)
+			},
+			Paging: true,
+			Codec: runtime.Codec(nil),
+			EncodeVersioner: runtime.GroupVersioner(nil),
+			Transformer: value.Transformer(nil),
+			CompactionInterval: time.Duration(300000000000),
+			CountMetricPollPeriod: time.Duration(60000000000),
+			DBMetricPollInterval: time.Duration(30000000000)
+		},
+
+可以看到启动参数etcd --advertise-client-urls http://127.0.0.1:2379
+的值被传递
+```
+
+
+
+其他参数可根据启动参数逐一比较，上面已经打印出s传参前后的值。
+
 从这里开始，s变量搜集到命令行参数传递的值
 
 下面接着分析comelete函数
